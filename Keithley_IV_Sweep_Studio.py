@@ -122,6 +122,16 @@ DEVICE_SPECS = {
     },
 }
 
+PLOT_COLUMNS = {
+    "Point": ("point", "Point"),
+    "Elapsed time (s)": ("elapsed_s", "Elapsed time (s)"),
+    "Set A (V)": ("set_voltage_a", "Set A (V)"),
+    "Measured A / VSD (V)": ("voltage_a", r"$V_{SD}$ (V)"),
+    "Current A / ISD (A)": ("current_a", r"$I_{SD}$ (A)"),
+    "Voltage B (V)": ("voltage_b", "Voltage B (V)"),
+    "Current B (A)": ("current_b", "Current B (A)"),
+}
+
 
 @dataclass(frozen=True)
 class SweepConfig:
@@ -1066,17 +1076,110 @@ class IVGui:
         if not self.data:
             return
 
-        v_sd = [item.voltage_a for item in self.data]
-        i_sd = [item.current_a for item in self.data]
-        nonzero_currents = [abs(value) for value in i_sd if value != 0]
-        linear_threshold = max(min(nonzero_currents, default=1e-12), 1e-15)
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Choose plot axes")
+        dialog.geometry("520x330")
+        dialog.resizable(False, False)
+        dialog.configure(bg=self.COLORS["background"])
+        dialog.transient(self.root)
+
+        heading = tk.Frame(dialog, bg=self.COLORS["navy"], padx=22, pady=16)
+        heading.pack(fill="x")
+        tk.Label(
+            heading,
+            text="Configure plot",
+            bg=self.COLORS["navy"],
+            fg="white",
+            font=("Helvetica", 16, "bold"),
+        ).pack(anchor="w")
+        tk.Label(
+            heading,
+            text="Choose any two columns from the measurement table",
+            bg=self.COLORS["navy"],
+            fg="#E8F0F5",
+            font=("Helvetica", 9),
+        ).pack(anchor="w", pady=(3, 0))
+
+        content = ttk.Frame(dialog, style="Card.TFrame", padding=20)
+        content.pack(fill="both", expand=True, padx=14, pady=14)
+        content.grid_columnconfigure(1, weight=1)
+
+        column_names = tuple(PLOT_COLUMNS)
+        x_axis = tk.StringVar(value="Measured A / VSD (V)")
+        y_axis = tk.StringVar(value="Current A / ISD (A)")
+        y_scale = tk.StringVar(value="Symmetric log")
+
+        ttk.Label(content, text="X axis", style="Field.TLabel").grid(row=0, column=0, sticky="w", pady=6)
+        x_selector = ttk.Combobox(content, textvariable=x_axis, values=column_names, state="readonly", width=32)
+        x_selector.grid(row=0, column=1, sticky="ew", padx=(14, 0), pady=6)
+
+        ttk.Label(content, text="Y axis", style="Field.TLabel").grid(row=1, column=0, sticky="w", pady=6)
+        y_selector = ttk.Combobox(content, textvariable=y_axis, values=column_names, state="readonly", width=32)
+        y_selector.grid(row=1, column=1, sticky="ew", padx=(14, 0), pady=6)
+
+        ttk.Label(content, text="Y scale", style="Field.TLabel").grid(row=2, column=0, sticky="w", pady=6)
+        scale_selector = ttk.Combobox(
+            content,
+            textvariable=y_scale,
+            values=("Linear", "Symmetric log", "Logarithmic (positive Y)"),
+            state="readonly",
+            width=32,
+        )
+        scale_selector.grid(row=2, column=1, sticky="ew", padx=(14, 0), pady=6)
+
+        def update_recommended_scale(_event=None) -> None:
+            if "Current" in y_axis.get() or "ISD" in y_axis.get():
+                y_scale.set("Symmetric log")
+            else:
+                y_scale.set("Linear")
+
+        y_selector.bind("<<ComboboxSelected>>", update_recommended_scale)
+
+        actions = ttk.Frame(content, style="Card.TFrame")
+        actions.grid(row=3, column=0, columnspan=2, sticky="e", pady=(18, 0))
+        ttk.Button(actions, text="Cancel", style="Secondary.TButton", command=dialog.destroy).pack(side="left", padx=(0, 8))
+
+        def create_plot() -> None:
+            selected_x = x_axis.get()
+            selected_y = y_axis.get()
+            selected_scale = y_scale.get()
+            dialog.destroy()
+            self._render_selected_plot(selected_x, selected_y, selected_scale)
+
+        ttk.Button(actions, text="Create plot", style="Primary.TButton", command=create_plot).pack(side="left")
+        dialog.bind("<Return>", lambda _event: create_plot())
+        dialog.bind("<Escape>", lambda _event: dialog.destroy())
+        dialog.grab_set()
+        x_selector.focus_set()
+
+    def _render_selected_plot(self, x_column: str, y_column: str, y_scale: str) -> None:
+        x_attribute, x_label = PLOT_COLUMNS[x_column]
+        y_attribute, y_label = PLOT_COLUMNS[y_column]
+        x_values = [getattr(item, x_attribute) for item in self.data]
+        y_values = [getattr(item, y_attribute) for item in self.data]
+
+        if y_scale == "Logarithmic (positive Y)":
+            positive_pairs = [(x_value, y_value) for x_value, y_value in zip(x_values, y_values) if y_value > 0]
+            if not positive_pairs:
+                messagebox.showwarning(
+                    "Cannot use logarithmic scale",
+                    "The selected Y column contains no positive values.",
+                    parent=self.root,
+                )
+                return
+            x_values, y_values = map(list, zip(*positive_pairs))
 
         figure, axis = plt.subplots(figsize=(8.5, 5.2))
-        axis.plot(v_sd, i_sd, "o-", markersize=3, linewidth=1.2, label=r"$I_{SD}$")
-        axis.set_yscale("symlog", linthresh=linear_threshold)
-        axis.set_xlabel(r"$V_{SD}$ (V)")
-        axis.set_ylabel(r"$I_{SD}$ (A)")
-        axis.set_title(r"$I_{SD}$–$V_{SD}$ Characteristic")
+        axis.plot(x_values, y_values, "o-", markersize=3, linewidth=1.2, label=y_label)
+        if y_scale == "Symmetric log":
+            nonzero_values = [abs(value) for value in y_values if value != 0]
+            linear_threshold = max(min(nonzero_values, default=1e-12), 1e-15)
+            axis.set_yscale("symlog", linthresh=linear_threshold)
+        elif y_scale == "Logarithmic (positive Y)":
+            axis.set_yscale("log")
+        axis.set_xlabel(x_label)
+        axis.set_ylabel(y_label)
+        axis.set_title(f"{y_label} vs {x_label}")
         axis.grid(True, which="both", alpha=0.25)
         axis.legend()
         figure.tight_layout()
