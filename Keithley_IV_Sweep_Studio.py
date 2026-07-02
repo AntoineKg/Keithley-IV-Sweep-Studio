@@ -6,12 +6,121 @@ import queue
 import threading
 import time
 import tkinter as tk
+import webbrowser
 from dataclasses import dataclass
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
 import matplotlib.pyplot as plt
 from keithley2600 import Keithley2600
+
+
+OFFICIAL_MANUAL_URLS = {
+    "A": "https://download.tek.com/manual/2600AS-901-01--E-Aug2011--Ref.pdf",
+    "B": "https://www.tek.com/en/keithley-source-measure-units/smu-2600b-series-sourcemeter-manual-8",
+}
+
+DEVICE_SPECS = {
+    "2602A": {
+        "description": "Dual-channel 40 V Series 2600A System SourceMeter",
+        "max_voltage": 40.4,
+        "boundary_voltage": 6.06,
+        "low_voltage_current": 3.0,
+        "high_voltage_current": 1.0,
+        "voltage_ranges": "100 mV, 1 V, 6 V, 40 V",
+        "current_ranges": "100 nA, 1 µA, 10 µA, 100 µA, 1 mA, 10 mA, 100 mA, 1 A, 3 A",
+        "resolution": "100 fA current / 100 nV voltage",
+        "power": "40 W DC per channel; 200 W pulse",
+    },
+    "2612A": {
+        "description": "Dual-channel 200 V Series 2600A System SourceMeter",
+        "max_voltage": 202.0,
+        "boundary_voltage": 20.2,
+        "low_voltage_current": 1.5,
+        "high_voltage_current": 0.1,
+        "voltage_ranges": "200 mV, 2 V, 20 V, 200 V",
+        "current_ranges": "100 nA, 1 µA, 10 µA, 100 µA, 1 mA, 10 mA, 100 mA, 1 A, 1.5 A",
+        "resolution": "100 fA current / 100 nV voltage",
+        "power": "30 W DC per channel; 200 W pulse",
+    },
+    "2636A": {
+        "description": "Dual-channel 200 V ultra-low-current Series 2600A System SourceMeter",
+        "max_voltage": 202.0,
+        "boundary_voltage": 20.2,
+        "low_voltage_current": 1.5,
+        "high_voltage_current": 0.1,
+        "voltage_ranges": "200 mV, 2 V, 20 V, 200 V",
+        "current_ranges": "100 pA measure-only; 1 nA, 10 nA, 100 nA, 1 µA, 10 µA, 100 µA, 1 mA, 10 mA, 100 mA, 1 A, 1.5 A",
+        "resolution": "0.1 fA current / 100 nV voltage",
+        "power": "30 W DC per channel; 200 W pulse",
+    },
+    "2602B": {
+        "description": "Dual-channel 40 V general-purpose System SourceMeter",
+        "max_voltage": 40.4,
+        "boundary_voltage": 6.06,
+        "low_voltage_current": 3.0,
+        "high_voltage_current": 1.0,
+        "voltage_ranges": "100 mV, 1 V, 6 V, 40 V",
+        "current_ranges": "100 nA, 1 µA, 10 µA, 100 µA, 1 mA, 10 mA, 100 mA, 1 A, 3 A",
+        "resolution": "100 fA current / 100 nV voltage",
+        "power": "40 W DC per channel; 200 W pulse",
+    },
+    "2604B": {
+        "description": "Dual-channel 40 V System SourceMeter",
+        "max_voltage": 40.4,
+        "boundary_voltage": 6.06,
+        "low_voltage_current": 3.0,
+        "high_voltage_current": 1.0,
+        "voltage_ranges": "100 mV, 1 V, 6 V, 40 V",
+        "current_ranges": "100 nA, 1 µA, 10 µA, 100 µA, 1 mA, 10 mA, 100 mA, 1 A, 3 A",
+        "resolution": "100 fA current / 100 nV voltage",
+        "power": "40 W DC per channel; 200 W pulse",
+    },
+    "2612B": {
+        "description": "Dual-channel 200 V general-purpose System SourceMeter",
+        "max_voltage": 202.0,
+        "boundary_voltage": 20.2,
+        "low_voltage_current": 1.5,
+        "high_voltage_current": 0.1,
+        "voltage_ranges": "200 mV, 2 V, 20 V, 200 V",
+        "current_ranges": "100 nA, 1 µA, 10 µA, 100 µA, 1 mA, 10 mA, 100 mA, 1 A, 1.5 A",
+        "resolution": "100 fA current / 100 nV voltage",
+        "power": "30 W DC per channel; 200 W pulse",
+    },
+    "2614B": {
+        "description": "Dual-channel 200 V System SourceMeter",
+        "max_voltage": 202.0,
+        "boundary_voltage": 20.2,
+        "low_voltage_current": 1.5,
+        "high_voltage_current": 0.1,
+        "voltage_ranges": "200 mV, 2 V, 20 V, 200 V",
+        "current_ranges": "100 nA, 1 µA, 10 µA, 100 µA, 1 mA, 10 mA, 100 mA, 1 A, 1.5 A",
+        "resolution": "100 fA current / 100 nV voltage",
+        "power": "30 W DC per channel; 200 W pulse",
+    },
+    "2634B": {
+        "description": "Dual-channel 200 V low-current System SourceMeter",
+        "max_voltage": 202.0,
+        "boundary_voltage": 20.2,
+        "low_voltage_current": 1.5,
+        "high_voltage_current": 0.1,
+        "voltage_ranges": "200 mV, 2 V, 20 V, 200 V",
+        "current_ranges": "1 nA, 10 nA, 100 nA, 1 µA, 10 µA, 100 µA, 1 mA, 10 mA, 100 mA, 1 A, 1.5 A",
+        "resolution": "1 fA current / 100 nV voltage",
+        "power": "30 W DC per channel; 200 W pulse",
+    },
+    "2636B": {
+        "description": "Dual-channel 200 V ultra-low-current System SourceMeter",
+        "max_voltage": 202.0,
+        "boundary_voltage": 20.2,
+        "low_voltage_current": 1.5,
+        "high_voltage_current": 0.1,
+        "voltage_ranges": "200 mV, 2 V, 20 V, 200 V",
+        "current_ranges": "100 pA measure-only; 1 nA, 10 nA, 100 nA, 1 µA, 10 µA, 100 µA, 1 mA, 10 mA, 100 mA, 1 A, 1.5 A",
+        "resolution": "0.1 fA current / 100 nV voltage",
+        "power": "30 W DC per channel; 200 W pulse",
+    },
+}
 
 
 @dataclass(frozen=True)
@@ -86,6 +195,7 @@ class IVGui:
         self.running = False
         self.connecting = False
         self.closing = False
+        self.selected_model: str | None = None
 
         self._configure_styles()
         self._build_interface()
@@ -245,6 +355,38 @@ class IVGui:
             font=("Helvetica", 10),
         ).pack(anchor="w", pady=(3, 0))
 
+        self.device_menu_button = tk.Menubutton(
+            header,
+            text="Compatible devices  ▾",
+            bg="#7896AC",
+            activebackground="#89A6BA",
+            fg="white",
+            activeforeground="white",
+            relief="flat",
+            cursor="hand2",
+            padx=13,
+            pady=7,
+            font=("Helvetica", 9, "bold"),
+        )
+        device_menu = tk.Menu(
+            self.device_menu_button,
+            tearoff=False,
+            bg=self.COLORS["surface"],
+            fg=self.COLORS["text"],
+            activebackground=self.COLORS["accent"],
+            activeforeground=self.COLORS["text"],
+            font=("Helvetica", 10),
+        )
+        device_menu.add_command(label="Series 2600A", state="disabled")
+        for model in ("2602A", "2612A", "2636A"):
+            device_menu.add_command(label=f"  Keithley {model}", command=lambda selected=model: self._select_device(selected))
+        device_menu.add_separator()
+        device_menu.add_command(label="Series 2600B", state="disabled")
+        for model in ("2602B", "2604B", "2612B", "2614B", "2634B", "2636B"):
+            device_menu.add_command(label=f"  Keithley {model}", command=lambda selected=model: self._select_device(selected))
+        self.device_menu_button.configure(menu=device_menu)
+        self.device_menu_button.grid(row=0, column=1, padx=(0, 10))
+
         self.connection_badge = tk.Label(
             header,
             text="●  DISCONNECTED",
@@ -254,7 +396,7 @@ class IVGui:
             pady=7,
             font=("Helvetica", 9, "bold"),
         )
-        self.connection_badge.grid(row=0, column=1, padx=24)
+        self.connection_badge.grid(row=0, column=2, padx=(0, 24))
 
         main = ttk.Frame(self.root, style="App.TFrame", padding=(18, 16, 18, 14))
         main.grid(row=1, column=0, sticky="nsew")
@@ -286,6 +428,129 @@ class IVGui:
             fg=self.COLORS["muted"],
             font=("Helvetica", 9),
         ).grid(row=0, column=1, padx=18)
+
+    def _select_device(self, model: str) -> None:
+        self.selected_model = model
+        self.device_menu_button.configure(text=f"Keithley {model}  ▾")
+        self._set_status(f"{model} selected · model-specific sweep limits enabled", "success")
+        self._show_device_ranges(model)
+
+    def _show_device_ranges(self, model: str) -> None:
+        spec = DEVICE_SPECS[model]
+        dialog = tk.Toplevel(self.root)
+        dialog.title(f"Keithley {model} · Compatible ranges")
+        dialog.geometry("940x650")
+        dialog.minsize(760, 520)
+        dialog.configure(bg=self.COLORS["background"])
+        dialog.transient(self.root)
+
+        dialog.grid_columnconfigure(0, weight=1)
+        dialog.grid_rowconfigure(1, weight=1)
+
+        heading = tk.Frame(dialog, bg=self.COLORS["navy"], padx=24, pady=18)
+        heading.grid(row=0, column=0, sticky="ew")
+        tk.Label(
+            heading,
+            text=f"Keithley {model}",
+            bg=self.COLORS["navy"],
+            fg="white",
+            font=("Helvetica", 18, "bold"),
+        ).pack(anchor="w")
+        tk.Label(
+            heading,
+            text=spec["description"],
+            bg=self.COLORS["navy"],
+            fg="#E8F0F5",
+            font=("Helvetica", 10),
+        ).pack(anchor="w", pady=(4, 0))
+
+        content = ttk.Frame(dialog, style="Card.TFrame", padding=18)
+        content.grid(row=1, column=0, sticky="nsew", padx=18, pady=18)
+        content.grid_columnconfigure(0, weight=1)
+        content.grid_rowconfigure(1, weight=1)
+
+        ttk.Label(
+            content,
+            text="Allowed application inputs and instrument ranges",
+            style="Section.TLabel",
+        ).grid(row=0, column=0, sticky="w", pady=(0, 10))
+
+        table_frame = ttk.Frame(content, style="Card.TFrame")
+        table_frame.grid(row=1, column=0, sticky="nsew")
+        table_frame.grid_columnconfigure(0, weight=1)
+        table_frame.grid_rowconfigure(0, weight=1)
+
+        table = ttk.Treeview(
+            table_frame,
+            columns=("parameter", "range", "details"),
+            show="headings",
+            selectmode="none",
+        )
+        table.heading("parameter", text="Parameter")
+        table.heading("range", text="Allowed value / range")
+        table.heading("details", text="Details")
+        table.column("parameter", width=180, minwidth=150, anchor="w", stretch=False)
+        table.column("range", width=300, minwidth=240, anchor="w")
+        table.column("details", width=390, minwidth=300, anchor="w")
+
+        max_voltage = spec["max_voltage"]
+        boundary = spec["boundary_voltage"]
+        low_current = spec["low_voltage_current"]
+        high_current = spec["high_voltage_current"]
+        rows = [
+            ("Application support", "Compatible", "This GUI uses SMUA and SMUB in DC voltage-source mode."),
+            ("SMU channels", "2", "Both channels are controlled and measured by the application."),
+            ("Start voltage", f"−{max_voltage:g} to +{max_voltage:g} V", "Applied to channel A."),
+            ("Stop voltage", f"−{max_voltage:g} to +{max_voltage:g} V", "Applied to channel A; ascending and descending sweeps are supported."),
+            ("Fixed channel B", f"−{max_voltage:g} to +{max_voltage:g} V", "Constant bias voltage for channel B."),
+            ("Voltage step", "> 0 V", "The stop value is always included; maximum 6,000 sweep points."),
+            (
+                "Current compliance",
+                f"0.0001–{low_current:g} A at |V| ≤ {boundary:g} V",
+                f"Above {boundary:g} V, the DC limit is {high_current:g} A. One limit is applied to both channels.",
+            ),
+            ("Integration time", "0.2–2000 ms", "Application range: 0.01–100 NPLC at a 50 Hz line frequency."),
+            ("Settling delay", "0 s or greater", "Additional wait after each voltage step before measuring."),
+            ("Voltage ranges", spec["voltage_ranges"], "Nominal source and measurement ranges."),
+            ("DC current ranges", spec["current_ranges"], "Instrument ranges; the GUI uses current autoranging."),
+            ("Pulse capability", "Up to 10 A", "Not exposed by this application; the current sweep is DC only."),
+            ("Measurement resolution", spec["resolution"], "Best available instrument resolution."),
+            ("Maximum output power", spec["power"], "Operating boundaries and thermal derating still apply."),
+        ]
+        for index, row in enumerate(rows):
+            table.insert("", "end", values=row, tags=("even" if index % 2 == 0 else "odd",))
+        table.tag_configure("even", background="#FFF8E8")
+        table.tag_configure("odd", background="#FFFDF7")
+
+        y_scroll = ttk.Scrollbar(table_frame, orient="vertical", command=table.yview)
+        x_scroll = ttk.Scrollbar(table_frame, orient="horizontal", command=table.xview)
+        table.configure(yscrollcommand=y_scroll.set, xscrollcommand=x_scroll.set)
+        table.grid(row=0, column=0, sticky="nsew")
+        y_scroll.grid(row=0, column=1, sticky="ns")
+        x_scroll.grid(row=1, column=0, sticky="ew")
+        dialog.after_idle(lambda: table.yview_moveto(0.0))
+
+        ttk.Label(
+            content,
+            text=(
+                "Selecting this model enables model-specific voltage and DC compliance checks. "
+                "The values summarize application limits and do not replace the instrument manual, "
+                "operating-boundary graphs, or laboratory safety procedures."
+            ),
+            style="Muted.TLabel",
+            wraplength=830,
+            justify="left",
+        ).grid(row=2, column=0, sticky="ew", pady=(12, 8))
+
+        actions = ttk.Frame(content, style="Card.TFrame")
+        actions.grid(row=3, column=0, sticky="e")
+        ttk.Button(
+            actions,
+            text="Official manual",
+            style="Secondary.TButton",
+            command=lambda: webbrowser.open(OFFICIAL_MANUAL_URLS[model[-1]]),
+        ).pack(side="left", padx=(0, 8))
+        ttk.Button(actions, text="Close", style="Primary.TButton", command=dialog.destroy).pack(side="left")
 
     def _build_control_panel(self, parent: ttk.Frame) -> None:
         panel = ttk.Frame(parent, style="Card.TFrame", padding=18)
@@ -508,6 +773,29 @@ class IVGui:
             raise ValueError("Current compliance must be between 0.0001 A and 10 A.")
         if values["settling_delay"] < 0:
             raise ValueError("Settling delay cannot be negative.")
+
+        if self.selected_model:
+            spec = DEVICE_SPECS[self.selected_model]
+            peak_voltage = max(
+                abs(values["start_voltage"]),
+                abs(values["stop_voltage"]),
+                abs(values["fixed_vb"]),
+            )
+            if peak_voltage > spec["max_voltage"]:
+                raise ValueError(
+                    f"Keithley {self.selected_model} supports up to ±{spec['max_voltage']:g} V. "
+                    "Reduce the channel A sweep or channel B bias."
+                )
+
+            if peak_voltage <= spec["boundary_voltage"]:
+                maximum_dc_current = spec["low_voltage_current"]
+            else:
+                maximum_dc_current = spec["high_voltage_current"]
+            if values["current_limit"] > maximum_dc_current:
+                raise ValueError(
+                    f"At a requested magnitude of {peak_voltage:g} V, Keithley {self.selected_model} "
+                    f"allows at most {maximum_dc_current:g} A DC compliance."
+                )
 
         nplc = values["integration_ms"] / 20.0
         if not 0.01 <= nplc <= 100:
