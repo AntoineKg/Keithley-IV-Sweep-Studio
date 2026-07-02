@@ -6,7 +6,7 @@ A responsive desktop GUI for dual-channel I-V sweeps with Keithley 2600 Series S
 
 <p align="center">
   <a href="https://github.com/AntoineKg/Keithley-IV-Sweep-Studio/releases/latest/download/Keithley-IV-Sweep-Studio.exe">
-    <img src="https://img.shields.io/badge/DOWNLOAD_FOR_WINDOWS-6A9FC0?style=for-the-badge&logo=windows11&logoColor=white" alt="Download Keithley I-V Sweep Studio for Windows" height="100">
+    <img src="https://img.shields.io/badge/DOWNLOAD_FOR_WINDOWS-2EA44F?style=for-the-badge&logo=windows11&logoColor=white" alt="Download Keithley I-V Sweep Studio for Windows" height="100">
   </a>
 </p>
 
