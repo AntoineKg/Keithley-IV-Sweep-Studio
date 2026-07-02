@@ -1066,19 +1066,17 @@ class IVGui:
         if not self.data:
             return
 
-        sweep_voltage = [item.set_voltage_a for item in self.data]
-        current_a = [item.current_a for item in self.data]
-        current_b = [item.current_b for item in self.data]
-        nonzero_currents = [abs(value) for value in current_a + current_b if value != 0]
+        v_sd = [item.voltage_a for item in self.data]
+        i_sd = [item.current_a for item in self.data]
+        nonzero_currents = [abs(value) for value in i_sd if value != 0]
         linear_threshold = max(min(nonzero_currents, default=1e-12), 1e-15)
 
         figure, axis = plt.subplots(figsize=(8.5, 5.2))
-        axis.plot(sweep_voltage, current_a, "o-", markersize=3, linewidth=1.2, label="SMUA current")
-        axis.plot(sweep_voltage, current_b, "s-", markersize=3, linewidth=1.2, label="SMUB current")
+        axis.plot(v_sd, i_sd, "o-", markersize=3, linewidth=1.2, label=r"$I_{SD}$")
         axis.set_yscale("symlog", linthresh=linear_threshold)
-        axis.set_xlabel("SMUA set voltage (V)")
-        axis.set_ylabel("Current (A)")
-        axis.set_title("I–V sweep")
+        axis.set_xlabel(r"$V_{SD}$ (V)")
+        axis.set_ylabel(r"$I_{SD}$ (A)")
+        axis.set_title(r"$I_{SD}$–$V_{SD}$ Characteristic")
         axis.grid(True, which="both", alpha=0.25)
         axis.legend()
         figure.tight_layout()
