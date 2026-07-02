@@ -163,6 +163,17 @@ def build_sweep_points(start: float, stop: float, step: float) -> list[float]:
     return points
 
 
+def normalize_ipv4_address(value: str) -> str:
+    """Accept decimal IPv4 octets with leading zeros and return canonical form."""
+    parts = value.strip().split(".")
+    if len(parts) != 4 or any(not part.isdigit() for part in parts):
+        raise ValueError("Enter a valid IPv4 address, for example 192.168.1.100.")
+    octets = [int(part, 10) for part in parts]
+    if any(octet < 0 or octet > 255 for octet in octets):
+        raise ValueError("Each IP address number must be between 0 and 255.")
+    return ".".join(str(octet) for octet in octets)
+
+
 class IVGui:
     COLORS = {
         "background": "#F6F0D8",
@@ -720,11 +731,13 @@ class IVGui:
             entry.configure(state="normal" if idle else "disabled")
 
     def connect(self) -> None:
-        address = self.ip_var.get().strip()
-        if not address:
-            messagebox.showwarning("Missing address", "Enter the instrument IP address first.", parent=self.root)
+        try:
+            address = normalize_ipv4_address(self.ip_var.get())
+        except ValueError as error:
+            messagebox.showwarning("Invalid address", str(error), parent=self.root)
             self.ip_entry.focus_set()
             return
+        self.ip_var.set(address)
 
         self.connecting = True
         self._set_connection_badge("connecting", address)
