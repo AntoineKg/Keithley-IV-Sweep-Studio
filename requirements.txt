@@ -1,0 +1,3 @@
+keithley2600>=2.1.0
+matplotlib>=3.8
+standard-xdrlib>=3.13; python_version >= "3.13"
