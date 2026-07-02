@@ -24,6 +24,7 @@ Because the executable is not code-signed, Windows SmartScreen may ask you to co
 - Input validation before outputs are enabled
 - CSV export with timestamps and source setpoints
 - Signed-log I_SD–V_SD characteristic plots
+- Plot dialog with selectable X/Y data columns and axis scale
 - Support for ascending and descending sweeps without voltage overshoot
 
 ## Installation from source
