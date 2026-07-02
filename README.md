@@ -1,5 +1,7 @@
 # Keithley I-V Sweep Studio
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A responsive desktop GUI for dual-channel I-V sweeps with Keithley 2600 Series SourceMeter instruments.
 
 ## Download for Windows
@@ -44,6 +46,10 @@ python3 Keithley_IV_Sweep_Studio.py
 ```
 
 Enter the instrument's IP address in the Connection panel, connect, review the sweep parameters, and start the sweep.
+
+## License
+
+Released under the [MIT License](LICENSE).
 
 ## Safety
 
