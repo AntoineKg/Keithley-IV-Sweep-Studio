@@ -17,6 +17,8 @@ Because the executable is not code-signed, Windows SmartScreen may ask you to co
 ## Features
 
 - Dual-channel voltage and current acquisition
+- Built-in Series 2600A/2600B compatibility guide and model-specific range tables
+- Model-aware voltage and DC compliance validation
 - Responsive Tkinter interface with live progress and status updates
 - Safe abort handling and output shutdown
 - Input validation before outputs are enabled
