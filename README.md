@@ -2,6 +2,12 @@
 
 A responsive desktop GUI for dual-channel I-V sweeps with Keithley 2600 Series SourceMeter instruments.
 
+## Download for Windows
+
+Download the standalone Windows executable from the [latest release](https://github.com/AntoineKg/Keithley-IV-Sweep-Studio/releases/latest). No Python installation is required.
+
+Because the executable is not code-signed, Windows SmartScreen may ask you to confirm that you want to run it.
+
 ## Features
 
 - Dual-channel voltage and current acquisition
@@ -12,7 +18,7 @@ A responsive desktop GUI for dual-channel I-V sweeps with Keithley 2600 Series S
 - Signed logarithmic current plots
 - Support for ascending and descending sweeps without voltage overshoot
 
-## Installation
+## Installation from source
 
 Python 3.10 or newer is recommended.
 
@@ -22,7 +28,7 @@ python3 -m pip install -r requirements.txt
 
 Tkinter is included with the standard Python installer on macOS and Windows. Linux users may need to install their distribution's `python3-tk` package.
 
-## Running the application
+## Running from source
 
 ```bash
 python3 Keithley_IV_Sweep_Studio.py
